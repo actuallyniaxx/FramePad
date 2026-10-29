@@ -1,10 +1,13 @@
 #include "ui/MainWindow.h"
 
+#include "media/MediaReader.h"
 #include "project/Commands.h"
 #include "project/Project.h"
 #include "ui/InspectorPanel.h"
 #include "ui/Language.h"
+#include "ui/MediaPanel.h"
 #include "ui/TimelinePanel.h"
+#include "ui/ViewerPanel.h"
 
 #include <QActionGroup>
 #include <QApplication>
@@ -17,6 +20,8 @@
 #include <QMessageBox>
 #include <QSettings>
 #include <QUndoStack>
+
+#include <algorithm>
 
 namespace fp {
 
@@ -34,6 +39,15 @@ QLabel *makeViewer(const QString &text, QWidget *parent)
 QString fileFilter()
 {
     return MainWindow::tr("FramePad projects (*.%1)").arg(QLatin1String(Project::FileSuffix));
+}
+
+QString mediaFilter()
+{
+    // FFmpeg reads far more than this; the list only decides what the dialog shows by default.
+    const QString patterns = QStringLiteral(
+        "*.mp4 *.m4v *.mov *.mkv *.webm *.avi *.mts *.m2ts *.ts *.mxf *.mpg *.mpeg *.wmv "
+        "*.wav *.mp3 *.flac *.aac *.m4a *.ogg *.opus *.aif *.aiff *.wma");
+    return MainWindow::tr("Media files (%1)").arg(patterns) + QStringLiteral(";;") + MainWindow::tr("All files (*)");
 }
 
 } // namespace
@@ -73,12 +87,15 @@ void MainWindow::createPanels()
         return dock;
     };
 
-    auto *media = new QLabel(tr("Drag media files here.\nImporting arrives in the next version."), this);
-    media->setAlignment(Qt::AlignCenter);
-    media->setWordWrap(true);
+    auto *media = new MediaPanel(m_project, this);
+    connect(media, &MediaPanel::importRequested, this, &MainWindow::importMediaDialog);
+    connect(media, &MediaPanel::filesDropped, this, &MainWindow::importMedia);
+    connect(media, &MediaPanel::removeRequested, this, &MainWindow::removeMedia);
+    connect(media, &MediaPanel::openRequested, this, &MainWindow::openInSourceViewer);
     addPanel(QStringLiteral("media"), tr("Media"), media, Qt::LeftDockWidgetArea);
-    addPanel(QStringLiteral("source"), tr("Source viewer"), makeViewer(tr("No clip loaded"), this),
-             Qt::LeftDockWidgetArea);
+
+    m_source = new ViewerPanel(tr("No clip loaded.\nDouble-click a clip in the media bin to view it."), this);
+    m_sourceDock = addPanel(QStringLiteral("source"), tr("Source viewer"), m_source, Qt::LeftDockWidgetArea);
 
     m_timeline = new TimelinePanel(m_project, this);
     addPanel(QStringLiteral("timeline"), tr("Timeline"), m_timeline, Qt::BottomDockWidgetArea);
@@ -95,6 +112,8 @@ void MainWindow::createMenus()
     QMenu *file = menuBar()->addMenu(tr("&File"));
     file->addAction(tr("&New project"), QKeySequence::New, this, &MainWindow::newProject);
     file->addAction(tr("&Open project..."), QKeySequence::Open, this, &MainWindow::openProjectDialog);
+    file->addSeparator();
+    file->addAction(tr("&Import media..."), QKeySequence(Qt::CTRL | Qt::Key_I), this, &MainWindow::importMediaDialog);
     file->addSeparator();
     file->addAction(tr("&Save"), QKeySequence::Save, this, &MainWindow::save);
     file->addAction(tr("Save &as..."), QKeySequence::SaveAs, this, &MainWindow::saveAs);
@@ -142,6 +161,7 @@ void MainWindow::newProject()
 {
     if (!confirmDiscard())
         return;
+    m_source->closeMedia();
     m_project->resetToDefault();
     m_undo->clear();
     m_path.clear();
@@ -159,6 +179,7 @@ void MainWindow::openProjectDialog()
 
 bool MainWindow::openProject(const QString &path)
 {
+    m_source->closeMedia();
     QString error;
     if (!m_project->load(path, &error)) {
         QMessageBox::warning(this, tr("Open project"),
@@ -194,6 +215,61 @@ bool MainWindow::saveAs()
         return false;
     m_path = path;
     return save();
+}
+
+void MainWindow::importMediaDialog()
+{
+    QSettings settings;
+    const QStringList paths = QFileDialog::getOpenFileNames(this, tr("Import media"),
+                                                            settings.value("paths/media").toString(), mediaFilter());
+    if (paths.isEmpty())
+        return;
+    settings.setValue("paths/media", QFileInfo(paths.first()).absolutePath());
+    importMedia(paths);
+}
+
+void MainWindow::importMedia(const QStringList &paths)
+{
+    QList<MediaItem> items;
+    QStringList failures;
+    for (const QString &input : paths) {
+        const QString path = QFileInfo(input).absoluteFilePath();
+        const bool duplicate = m_project->indexOfMedia(path) >= 0
+            || std::any_of(items.cbegin(), items.cend(),
+                           [&](const MediaItem &item) { return QFileInfo(item.path) == QFileInfo(path); });
+        if (duplicate)
+            continue;
+
+        // Opening the file once rejects anything FFmpeg cannot decode before it reaches the project.
+        MediaReader reader;
+        QString error;
+        if (reader.open(path, &error))
+            items.append(MediaItem{path});
+        else
+            failures.append(QStringLiteral("%1: %2").arg(QFileInfo(path).fileName(), error));
+    }
+    if (!items.isEmpty())
+        m_undo->push(new ImportMediaCommand(m_project, items));
+    if (!failures.isEmpty())
+        QMessageBox::warning(this, tr("Import media"),
+                             tr("Some files could not be imported:\n\n%1").arg(failures.join(QLatin1Char('\n'))));
+}
+
+void MainWindow::removeMedia(const QList<int> &rows)
+{
+    m_undo->push(new RemoveMediaCommand(m_project, rows));
+}
+
+void MainWindow::openInSourceViewer(const QString &path)
+{
+    QString error;
+    if (!m_source->openMedia(path, &error)) {
+        QMessageBox::warning(this, tr("Source viewer"),
+                             tr("Could not open %1:\n%2").arg(QFileInfo(path).fileName(), error));
+        return;
+    }
+    m_sourceDock->show();
+    m_sourceDock->raise();
 }
 
 void MainWindow::addTrack(bool video)

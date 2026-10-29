@@ -1,6 +1,8 @@
 #include "project/Project.h"
 
+#include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QSaveFile>
@@ -34,8 +36,10 @@ void Project::resetToDefault()
         {QStringLiteral("V1"), TrackKind::Video},
         {QStringLiteral("A1"), TrackKind::Audio},
     };
+    m_media.clear();
     emit settingsChanged();
     emit tracksChanged();
+    emit mediaChanged();
 }
 
 void Project::setSettings(const ProjectSettings &settings)
@@ -59,7 +63,29 @@ Track Project::takeTrack(int index)
     return track;
 }
 
-QJsonObject Project::toJson() const
+int Project::indexOfMedia(const QString &path) const
+{
+    for (int i = 0; i < m_media.size(); ++i) {
+        if (QFileInfo(m_media.at(i).path) == QFileInfo(path))
+            return i;
+    }
+    return -1;
+}
+
+void Project::insertMedia(int index, const MediaItem &item)
+{
+    m_media.insert(qBound(0, index, int(m_media.size())), item);
+    emit mediaChanged();
+}
+
+MediaItem Project::takeMedia(int index)
+{
+    MediaItem item = m_media.takeAt(index);
+    emit mediaChanged();
+    return item;
+}
+
+QJsonObject Project::toJson(const QString &projectDir) const
 {
     QJsonArray tracks;
     for (const Track &t : m_tracks) {
@@ -69,6 +95,14 @@ QJsonObject Project::toJson() const
             {"muted", t.muted},
             {"locked", t.locked},
         });
+    }
+
+    QJsonArray media;
+    for (const MediaItem &m : m_media) {
+        QJsonObject item{{"path", QDir::fromNativeSeparators(m.path)}};
+        if (!projectDir.isEmpty())
+            item["relativePath"] = QDir(projectDir).relativeFilePath(m.path);
+        media.append(item);
     }
 
     return {
@@ -81,10 +115,11 @@ QJsonObject Project::toJson() const
             {"sampleRate", m_settings.sampleRate},
         }},
         {"tracks", tracks},
+        {"media", media},
     };
 }
 
-bool Project::fromJson(const QJsonObject &input, QString *error)
+bool Project::fromJson(const QJsonObject &input, QString *error, const QString &projectDir)
 {
     const int version = input.value("formatVersion").toInt(0);
     if (version < 1) {
@@ -118,18 +153,35 @@ bool Project::fromJson(const QJsonObject &input, QString *error)
         });
     }
 
+    QList<MediaItem> media;
+    for (const QJsonValue &v : json.value("media").toArray()) {
+        const QJsonObject m = v.toObject();
+        QString path = m.value("path").toString();
+        const QString relative = m.value("relativePath").toString();
+        // The absolute path wins; the relative one rescues projects whose folder was moved.
+        if (!QFileInfo::exists(path) && !relative.isEmpty() && !projectDir.isEmpty()) {
+            const QString moved = QDir::cleanPath(QDir(projectDir).absoluteFilePath(relative));
+            if (QFileInfo::exists(moved))
+                path = moved;
+        }
+        if (!path.isEmpty())
+            media.append(MediaItem{path});
+    }
+
     m_settings = settings;
     m_tracks = tracks;
+    m_media = media;
     emit settingsChanged();
     emit tracksChanged();
+    emit mediaChanged();
     return true;
 }
 
 QJsonObject Project::migrate(QJsonObject json, int fromVersion)
 {
-    // Each future format bump adds a step here, e.g.:
-    // if (fromVersion < 2) { ...rewrite json from v1 to v2... }
-    Q_UNUSED(fromVersion);
+    // One step per format bump, applied in order.
+    if (fromVersion < 2)
+        json["media"] = QJsonArray(); // v1 had no media bin
     json["formatVersion"] = FormatVersion;
     return json;
 }
@@ -143,7 +195,7 @@ bool Project::save(const QString &path, QString *error) const
             *error = file.errorString();
         return false;
     }
-    file.write(QJsonDocument(toJson()).toJson(QJsonDocument::Indented));
+    file.write(QJsonDocument(toJson(QFileInfo(path).absolutePath())).toJson(QJsonDocument::Indented));
     if (!file.commit()) {
         if (error)
             *error = file.errorString();
@@ -167,7 +219,7 @@ bool Project::load(const QString &path, QString *error)
             *error = tr("This is not a FramePad project.");
         return false;
     }
-    return fromJson(doc.object(), error);
+    return fromJson(doc.object(), error, QFileInfo(path).absolutePath());
 }
 
 } // namespace fp

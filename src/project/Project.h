@@ -18,6 +18,13 @@ struct Track {
     bool operator==(const Track &) const = default;
 };
 
+// A file imported into the project's media bin.
+struct MediaItem {
+    QString path; // absolute
+
+    bool operator==(const MediaItem &) const = default;
+};
+
 struct ProjectSettings {
     int width = 1920;
     int height = 1080;
@@ -33,7 +40,7 @@ class Project : public QObject {
     Q_OBJECT
 public:
     // Bump when the file layout changes and add a step to migrate().
-    static constexpr int FormatVersion = 1;
+    static constexpr int FormatVersion = 2;
     static constexpr const char *FileSuffix = "fpproj";
 
     explicit Project(QObject *parent = nullptr);
@@ -43,14 +50,20 @@ public:
 
     const ProjectSettings &settings() const { return m_settings; }
     const QList<Track> &tracks() const { return m_tracks; }
+    const QList<MediaItem> &media() const { return m_media; }
+    int indexOfMedia(const QString &path) const;
 
     void setSettings(const ProjectSettings &settings);
     void insertTrack(int index, const Track &track);
     Track takeTrack(int index);
+    void insertMedia(int index, const MediaItem &item);
+    MediaItem takeMedia(int index);
 
-    QJsonObject toJson() const;
+    // Media paths are also stored relative to projectDir, so a project folder moved
+    // or copied to another drive still finds its files.
+    QJsonObject toJson(const QString &projectDir = QString()) const;
     // Returns false and fills error if the file is unreadable or from a newer FramePad.
-    bool fromJson(const QJsonObject &json, QString *error);
+    bool fromJson(const QJsonObject &json, QString *error, const QString &projectDir = QString());
 
     bool save(const QString &path, QString *error) const;
     bool load(const QString &path, QString *error);
@@ -58,12 +71,14 @@ public:
 signals:
     void settingsChanged();
     void tracksChanged();
+    void mediaChanged();
 
 private:
     static QJsonObject migrate(QJsonObject json, int fromVersion);
 
     ProjectSettings m_settings;
     QList<Track> m_tracks;
+    QList<MediaItem> m_media;
 };
 
 } // namespace fp

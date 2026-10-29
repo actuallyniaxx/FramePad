@@ -9,6 +9,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+env:
+  # GPL "shared" build of the FFmpeg 8.1 branch: headers, MSVC import libraries and DLLs.
+  FFMPEG_PACKAGE: ffmpeg-n8.1-latest-win64-gpl-shared-8.1
+
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -16,17 +20,27 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
           version: '6.8.3'
           arch: win64_msvc2022_64
+          modules: qtshadertools
           cache: true
 
+      - name: Install FFmpeg
+        run: |
+          curl -sSfL -o ffmpeg.zip "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/$FFMPEG_PACKAGE.zip"
+          unzip -q ffmpeg.zip -d "$RUNNER_TEMP"
+          root="$(cygpath -m "$RUNNER_TEMP")/$FFMPEG_PACKAGE"
+          echo "FFMPEG_ROOT=$root" >> "$GITHUB_ENV"
+          # The tests load the FFmpeg DLLs from PATH.
+          cygpath -w "$root/bin" >> "$GITHUB_PATH"
+
       - name: Configure
-        run: cmake -S . -B build -A x64
+        run: cmake -S . -B build -A x64 -DFFMPEG_ROOT="$FFMPEG_ROOT"
 
       - name: Build
         run: cmake --build build --config Release --parallel
@@ -43,14 +57,17 @@ jobs:
             echo "::warning file=translations/FramePad_es.ts::$missing untranslated string(s). Open the file in Qt Linguist to translate them."
           fi
 
-      - name: Deploy Qt runtime
+      - name: Deploy runtime
         run: |
-          mkdir -p deploy
+          mkdir -p deploy/licenses
           cp build/Release/FramePad.exe deploy/
           windeployqt --release --no-system-d3d-compiler deploy/FramePad.exe
+          cp "$FFMPEG_ROOT"/bin/{avcodec,avformat,avutil,swscale,swresample}-*.dll deploy/
+          cp "$FFMPEG_ROOT/LICENSE.txt" deploy/licenses/FFmpeg.txt
+          cp LICENSE deploy/licenses/FramePad.txt
 
       - name: Upload build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: FramePad-${{ github.sha }}-win-x64
           path: deploy/

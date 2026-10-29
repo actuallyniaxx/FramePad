@@ -2,12 +2,14 @@
 
 #include <QMainWindow>
 
+class QDockWidget;
 class QUndoStack;
 
 namespace fp {
 
 class Project;
 class TimelinePanel;
+class ViewerPanel;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -25,6 +27,10 @@ private:
     void createMenus();
     void newProject();
     void openProjectDialog();
+    void importMediaDialog();
+    void importMedia(const QStringList &paths);
+    void removeMedia(const QList<int> &rows);
+    void openInSourceViewer(const QString &path);
     bool save();
     bool saveAs();
     void addTrack(bool video);
@@ -39,6 +45,8 @@ private:
     Project *m_project;
     QUndoStack *m_undo;
     TimelinePanel *m_timeline = nullptr;
+    ViewerPanel *m_source = nullptr;
+    QDockWidget *m_sourceDock = nullptr;
     QMenu *m_panelsMenu = nullptr;
     QString m_path; // empty until the project is saved for the first time
 };

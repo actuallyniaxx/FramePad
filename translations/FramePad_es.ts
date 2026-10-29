@@ -6,6 +6,12 @@
     <message><source>Add track</source><translation>Añadir pista</translation></message>
     <message><source>Remove track</source><translation>Quitar pista</translation></message>
     <message><source>Change project settings</source><translation>Cambiar ajustes del proyecto</translation></message>
+    <message><source>Import media</source><translation>Importar medios</translation></message>
+    <message><source>Remove media</source><translation>Quitar medios</translation></message>
+</context>
+<context>
+    <name>fp::Audio</name>
+    <message><source>The audio device could not be opened (%1 failed with error 0x%2).</source><translation>No se pudo abrir el dispositivo de audio (%1 falló con el error 0x%2).</translation></message>
 </context>
 <context>
     <name>fp::InspectorPanel</name>
@@ -17,19 +23,21 @@
 <context>
     <name>fp::MainWindow</name>
     <message><source>FramePad projects (*.%1)</source><translation>Proyectos de FramePad (*.%1)</translation></message>
+    <message><source>Media files (%1)</source><translation>Archivos de medios (%1)</translation></message>
+    <message><source>All files (*)</source><translation>Todos los archivos (*)</translation></message>
     <message><source>Program viewer</source><translation>Visor de programa</translation></message>
     <message><source>&amp;Panels</source><translation>&amp;Paneles</translation></message>
-    <message><source>Drag media files here.
-Importing arrives in the next version.</source><translation>Arrastra aquí tus archivos de medios.
-La importación llega en la próxima versión.</translation></message>
     <message><source>Media</source><translation>Medios</translation></message>
     <message><source>Source viewer</source><translation>Visor de origen</translation></message>
-    <message><source>No clip loaded</source><translation>Ningún clip cargado</translation></message>
+    <message><source>No clip loaded.
+Double-click a clip in the media bin to view it.</source><translation>Ningún clip cargado.
+Haz doble clic en un clip del panel de medios para verlo.</translation></message>
     <message><source>Timeline</source><translation>Línea de tiempo</translation></message>
     <message><source>Inspector</source><translation>Inspector</translation></message>
     <message><source>&amp;File</source><translation>&amp;Archivo</translation></message>
     <message><source>&amp;New project</source><translation>&amp;Nuevo proyecto</translation></message>
     <message><source>&amp;Open project...</source><translation>&amp;Abrir proyecto...</translation></message>
+    <message><source>&amp;Import media...</source><translation>&amp;Importar medios...</translation></message>
     <message><source>&amp;Save</source><translation>&amp;Guardar</translation></message>
     <message><source>Save &amp;as...</source><translation>Guardar &amp;como...</translation></message>
     <message><source>E&amp;xit</source><translation>&amp;Salir</translation></message>
@@ -53,6 +61,12 @@ La importación llega en la próxima versión.</translation></message>
     <message><source>Could not save %1:
 %2</source><translation>No se pudo guardar %1:
 %2</translation></message>
+    <message><source>Import media</source><translation>Importar medios</translation></message>
+    <message><source>Some files could not be imported:
+
+%1</source><translation>Algunos archivos no se pudieron importar:
+
+%1</translation></message>
     <message><source>Remove track</source><translation>Quitar pista</translation></message>
     <message><source>Select a track in the timeline first.</source><translation>Primero selecciona una pista en la línea de tiempo.</translation></message>
     <message><source>Language</source><translation>Idioma</translation></message>
@@ -64,6 +78,25 @@ La importación llega en la próxima versión.</translation></message>
     <message><source>Untitled</source><translation>Sin título</translation></message>
 </context>
 <context>
+    <name>fp::Media</name>
+    <message><source>The file could not be opened: %1</source><translation>No se pudo abrir el archivo: %1</translation></message>
+    <message><source>The file could not be read: %1</source><translation>No se pudo leer el archivo: %1</translation></message>
+    <message><source>The file has no video or audio that FramePad can read.</source><translation>El archivo no tiene vídeo ni audio que FramePad pueda leer.</translation></message>
+    <message><source>The file has no video.</source><translation>El archivo no tiene vídeo.</translation></message>
+    <message><source>No picture could be decoded.</source><translation>No se pudo decodificar ninguna imagen.</translation></message>
+    <message><source>The file has no audio.</source><translation>El archivo no tiene audio.</translation></message>
+</context>
+<context>
+    <name>fp::MediaPanel</name>
+    <message><source>%1×%2 · %3 fps · %4</source><translation>%1×%2 · %3 fps · %4</translation></message>
+    <message><source>Audio · %1 Hz · %2 ch · %3</source><translation>Audio · %1 Hz · %2 canales · %3</translation></message>
+    <message><source>Drag video or audio files here,
+or use File → Import media.</source><translation>Arrastra aquí archivos de vídeo o audio,
+o usa Archivo → Importar medios.</translation></message>
+    <message><source>Import...</source><translation>Importar...</translation></message>
+    <message><source>File not found</source><translation>Archivo no encontrado</translation></message>
+</context>
+<context>
     <name>fp::Project</name>
     <message><source>This is not a FramePad project.</source><translation>Esto no es un proyecto de FramePad.</translation></message>
     <message><source>This project was saved with a newer version of FramePad. Update FramePad to open it.</source><translation>Este proyecto se guardó con una versión más nueva de FramePad. Actualiza FramePad para abrirlo.</translation></message>
@@ -72,5 +105,12 @@ La importación llega en la próxima versión.</translation></message>
     <name>fp::TimelinePanel</name>
     <message><source>Video</source><translation>Vídeo</translation></message>
     <message><source>Audio</source><translation>Audio</translation></message>
+</context>
+<context>
+    <name>fp::ViewerPanel</name>
+    <message><source>Play / pause (Space)</source><translation>Reproducir / pausa (Espacio)</translation></message>
+    <message><source>%1
+(audio only)</source><translation>%1
+(solo audio)</translation></message>
 </context>
 </TS>
