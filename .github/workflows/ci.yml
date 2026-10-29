@@ -51,7 +51,7 @@ jobs:
           ctest --test-dir build -C Release --output-on-failure 2>&1 | tee ctest.log
           status=${PIPESTATUS[0]}
           # Failures also become annotations, which show on the run page without opening the log.
-          grep -E 'FAIL!|Loc: |Actual|Expected' ctest.log | head -40 | while IFS= read -r line; do
+          grep -iE 'fail|exception|error|not found|timeout|exit code|Actual|Expected|Loc: ' ctest.log | head -40 | while IFS= read -r line; do
             echo "::error title=Test::$line"
           done
           exit $status
