@@ -8,5 +8,8 @@ target_link_libraries(tst_media PRIVATE framepad_core Qt6::Test)
 target_compile_definitions(tst_media PRIVATE FRAMEPAD_TEST_FFMPEG="${FFMPEG_ROOT}/bin/ffmpeg.exe")
 add_test(NAME tst_media COMMAND tst_media)
 
+# Console programs, so QTest's report reaches ctest (Qt's project defaults make Windows GUI executables).
+set_target_properties(tst_project tst_media PROPERTIES WIN32_EXECUTABLE FALSE)
+
 # The tests never show a window; run them without a display.
 set_tests_properties(tst_project tst_media PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
