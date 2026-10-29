@@ -52,7 +52,8 @@ jobs:
           status=${PIPESTATUS[0]}
           # On failure the test output also becomes an annotation, readable without opening the log.
           if [ "$status" != "0" ]; then
-            build/tests/Release/tst_media.exe >> ctest.log 2>&1; echo "tst_media exit code: $?" >> ctest.log
+            exe=$(find build -name tst_media.exe | head -1); echo "running $exe" >> ctest.log
+            "$exe" -v2 >> ctest.log 2>&1; echo "tst_media exit code: $?" >> ctest.log
             output=$(tail -n 80 ctest.log | tr -d '\r' | sed -e 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
             echo "::error title=Test output::$output"
           fi
