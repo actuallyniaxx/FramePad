@@ -1,0 +1,56 @@
+name: CI
+
+# Builds FramePad on every push and pull request, runs the tests and uploads
+# a ready-to-run build (zip of the deployed folder) as a workflow artifact.
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.3'
+          arch: win64_msvc2022_64
+          cache: true
+
+      - name: Configure
+        run: cmake -S . -B build -A x64
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Check translations
+        run: |
+          # lupdate rescans the sources; any string without a Spanish translation is reported.
+          cmake --build build --config Release --target update_translations
+          missing=$(grep -c 'type="unfinished"' translations/FramePad_es.ts || true)
+          if [ "$missing" != "0" ]; then
+            echo "::warning file=translations/FramePad_es.ts::$missing untranslated string(s). Open the file in Qt Linguist to translate them."
+          fi
+
+      - name: Deploy Qt runtime
+        run: |
+          mkdir -p deploy
+          cp build/Release/FramePad.exe deploy/
+          windeployqt --release --no-system-d3d-compiler deploy/FramePad.exe
+
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: FramePad-${{ github.sha }}-win-x64
+          path: deploy/
