@@ -52,7 +52,7 @@ jobs:
           status=${PIPESTATUS[0]}
           # On failure the test output also becomes an annotation, readable without opening the log.
           if [ "$status" != "0" ]; then
-            output=$(tail -n 80 ctest.log | tr -d '' | sed -e 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+            output=$(tail -n 80 ctest.log | tr -d '\r' | sed -e 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
             echo "::error title=Test output::$output"
           fi
           exit $status
