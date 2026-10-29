@@ -52,10 +52,10 @@ jobs:
           status=${PIPESTATUS[0]}
           # On failure the test output also becomes an annotation, readable without opening the log.
           if [ "$status" != "0" ]; then
-            exe=$(find build -name tst_media.exe | head -1); echo "running $exe" >> ctest.log
-            ldd "$exe" >> ctest.log 2>&1
-            "$exe" -v2 -o qtest.txt,txt >> ctest.log 2>&1; echo "tst_media exit code: $?" >> ctest.log
-            cat qtest.txt >> ctest.log 2>&1
+            # QTest's console output does not reach ctest here; rerun the failed tests writing to a file.
+            for t in $(grep -oE 'tst_[a-z]+ \(Failed\)' ctest.log | cut -d' ' -f1); do
+              "build/Release/$t.exe" -o "$t.txt,txt"; grep -E 'FAIL!|Loc:|Actual|Expected' "$t.txt" >> ctest.log
+            done
             output=$(tail -n 80 ctest.log | tr -d '\r' | sed -e 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
             echo "::error title=Test output::$output"
           fi
